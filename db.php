@@ -487,11 +487,6 @@ class hyperdb extends wpdb {
 			return $this->dbhs[$dbhname];
 		}
 
-		// tmp: This is needed on vipd hosts for the k8s cutover
-		if ( $use_master && defined( 'VIP_GO_K8S_CUTOVER' ) && true === VIP_GO_K8S_CUTOVER ) {
-			return wp_die( "We're migrating your site to upgraded infrastructure, please try back in 1 minute.  If you are posting content, please hit the refresh button on your browser in a minute to try again." );
-		}
-
 		if ( $use_master && defined( "MASTER_DB_DEAD" ) ) {
 			return $this->bail("We're updating the database, please try back in 5 minutes. If you are posting to your blog please hit the refresh button on your browser in a few minutes to post the data again. It will be posted as soon as the database is back online again.");
 		}
