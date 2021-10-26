@@ -6,7 +6,7 @@ Plugin URI: https://wordpress.org/plugins/hyperdb/
 Description: An advanced database class that supports replication, failover, load balancing, and partitioning.
 Author: Automattic
 License: GPLv2 or later
-Version: 1.7
+Version: 1.8
 */
 
 /** This file should be installed at ABSPATH/wp-content/db.php **/
@@ -47,8 +47,10 @@ define( 'HYPERDB_LAG_OK', 1 );
 define( 'HYPERDB_LAG_BEHIND', 2 );
 define( 'HYPERDB_LAG_UNKNOWN', 3 );
 
-define( 'HYPERDB_CONN_HOST_ERROR', 2003 );   // Can't connect to MySQL server on '%s' (%d)
-define( 'HYPERDB_SERVER_GONE_ERROR', 2006 ); // MySQL server has gone away
+define( 'HYPERDB_ER_OPTION_PREVENTS_STATEMENT', 1290 ); // The MySQL server is running with the %s option so it cannot execute this statement
+define( 'HYPERDB_CONNNECTION_ERROR',            2002 ); // Can't connect to local MySQL server through socket '%s' (%d)
+define( 'HYPERDB_CONN_HOST_ERROR',              2003 ); // Can't connect to MySQL server on '%s' (%d)
+define( 'HYPERDB_SERVER_GONE_ERROR',            2006 ); // MySQL server has gone away
 
 class hyperdb extends wpdb {
 	/**
@@ -166,6 +168,18 @@ class hyperdb extends wpdb {
 	var $used_servers = array();
 
 	/**
+	 * Lookup array (dbhname => (group, key)) prioritized for connections
+	 * @var array
+	 */
+	var $unused_servers = array();
+
+	/**
+	 * Lookup array (dbhname => int) of the number of unique servers in the config
+	 * @var array
+	 */
+	var $unique_servers = array();
+
+	/**
 	 * Whether to save debug_backtrace in save_query_callback. You may wish
 	 * to disable this, e.g. when tracing out-of-memory problems.
 	 */
@@ -206,13 +220,6 @@ class hyperdb extends wpdb {
 		$this->use_mysqli = $this->should_use_mysqli();
 
 		$this->init_charset();
-	}
-
-	/**
-	 * Triggers __construct() for backwards compatibility with PHP4
-	 */
-	function hyperdb( $args = null ) {
-		return $this->__construct($args);
 	}
 
 	/**
@@ -487,37 +494,45 @@ class hyperdb extends wpdb {
 		if ( empty($this->hyper_servers[$dataset][$operation]) )
 			return $this->log_and_bail("No databases available with $this->table ($dataset)");
 
-		// Put the groups in order by priority
-		ksort($this->hyper_servers[$dataset][$operation]);
-
 		// Make a list of at least $this->min_tries connections to try, repeating as necessary.
-		$servers = array();
-		do {
-			foreach ( $this->hyper_servers[$dataset][$operation] as $group => $items ) {
-				$keys = array_keys($items);
-				shuffle($keys);
-				foreach ( $keys as $key )
-					$servers[] = compact('group', 'key');
+		if ( ! isset( $this->unused_servers[ $dbhname ] ) ) {
+			// Put the groups in order by priority
+			ksort($this->hyper_servers[$dataset][$operation]);
+
+			$servers = array();
+			foreach ( $this->hyper_servers[ $dataset ][ $operation ] as $group => $items ) {
+				$keys = array_keys( $items );
+				shuffle( $keys );
+				foreach ( $keys as $key ) {
+					$servers[] = compact( 'group', 'key' );
+				}
 			}
 
-			if ( !$tries_remaining = count( $servers ) )
+			$this->unique_servers[ $dbhname ] = count( $servers );
+			if ( $this->unique_servers[ $dbhname ] === 0 ) {
 				return $this->log_and_bail("No database servers were found to match the query ($this->table, $dataset)");
+			}
 
-			if ( !isset( $unique_servers ) )
-				$unique_servers = $tries_remaining;
+			$this->unused_servers[ $dbhname ] = $servers;
 
-		} while ( $tries_remaining < $this->min_tries );
+			// Repeat the server list until there are enough for retries (unless master has fallbacks)
+			if ( ! ( $use_master && $this->unique_servers[ $dbhname ] > 1 ) ) {
+				while ( count( $this->unused_servers[ $dbhname ] ) < $this->min_tries ) {
+					$this->unused_servers[ $dbhname ] = array_merge( $this->unused_servers[ $dbhname ], $servers );
+				}
+			}
+		}
 
 		// Connect to a database server
 		do {
 			$unique_lagged_slaves = array();
 			$success = false;
 
-			foreach ( $servers as $group_key ) {
-				--$tries_remaining;
+			while ( $group_key = array_shift( $this->unused_servers[ $dbhname ] ) ) {
+				$tries_remaining = count( $this->unused_servers[ $dbhname ] );
 
 				// If all servers are lagged, we need to start ignoring the lag and retry
-				if ( count( $unique_lagged_slaves ) == $unique_servers )
+				if ( count( $unique_lagged_slaves ) == $this->unique_servers[ $dbhname ] )
 					break;
 
 				// $group, $key
@@ -551,6 +566,14 @@ class hyperdb extends wpdb {
 				if ( !isset( $min_group ) || $min_group > $group )
 					$min_group = $group;
 
+				// Skip master if read-only and fallback masters are configured
+				if ( $use_master && $this->unique_servers[ $dbhname ] > 1 ) {
+					// Load server state from acpu, bypassing check_tcp_responsiveness()
+					if ( $this->server_marked_read_only( $host, $port, $dbhname ) ) {
+						continue;
+					}
+				}
+
 				// Can be used by the lag callbacks
 				$this->lag_cache_key = "$host:$port";
 				$this->lag_threshold = isset($lag_threshold) ? $lag_threshold : $this->default_lag_threshold;
@@ -562,7 +585,7 @@ class hyperdb extends wpdb {
 				) {
 					// If it is the last lagged slave and it is with the best preference we will ignore its lag
 					if ( !isset( $unique_lagged_slaves["$host:$port"] )
-						&& $unique_servers == count( $unique_lagged_slaves ) + 1
+						&& $this->unique_servers[ $dbhname ] == count( $unique_lagged_slaves ) + 1
 						&& $group == $min_group )
 					{
 						$this->lag_threshold = null;
@@ -577,7 +600,7 @@ class hyperdb extends wpdb {
 				// Connect if necessary or possible
 				$server_state = null;
 				if ( $use_master || ! $tries_remaining ||
-					'up' == $server_state = $this->get_server_state( $host, $port, $timeout ) )
+					'up' == $server_state = $this->get_server_state( $host, $port, $dbhname, $timeout ) )
 				{
 					$this->set_connect_timeout( 'pre_connect', $use_master, $tries_remaining );
 					$this->dbhs[$dbhname] = $this->ex_mysql_connect( "$host:$port", $user, $password, $this->persistent );
@@ -599,7 +622,7 @@ class hyperdb extends wpdb {
 						&& ( $lagged_status = $this->get_lag() ) === HYPERDB_LAG_BEHIND
 						&& !(
 							!isset( $unique_lagged_slaves["$host:$port"] )
-							&& $unique_servers == count( $unique_lagged_slaves ) + 1
+							&& $this->unique_servers[ $dbhname ] == count( $unique_lagged_slaves ) + 1
 							&& $group == $min_group
 						)
 					) {
@@ -626,10 +649,11 @@ class hyperdb extends wpdb {
 				if ( 'down' == $server_state )
 					continue; // don't flood the logs if already down
 
-				if ( HYPERDB_CONN_HOST_ERROR == $this->ex_mysql_errno() &&
+				$errno = $this->ex_mysql_errno();
+				if ( ( HYPERDB_CONN_HOST_ERROR == $errno || HYPERDB_CONNNECTION_ERROR == $errno ) &&
 					( 'up' == $server_state || ! $tries_remaining ) )
 				{
-					$this->mark_server_as_down( $host, $port );
+					$this->mark_server_as_down( $host, $port, $dbhname );
 					$server_state = 'down';
 				}
 
@@ -652,7 +676,6 @@ class hyperdb extends wpdb {
 				if ( !isset( $ignore_slave_lag ) && count( $unique_lagged_slaves ) ) {
 					// Lagged slaves were not used. Ignore the lag for this connection attempt and retry.
 					$ignore_slave_lag = true;
-					$tries_remaining = count( $servers );
 					continue;
 				}
 
@@ -802,7 +825,11 @@ class hyperdb extends wpdb {
 				$this->check_current_query = true;
 				$this->last_error = 'Database connection failed';
 				$this->num_failed_queries++;
-				do_action( 'sql_query_log', $query, false, $this->last_error );
+
+				if ( function_exists( 'do_action' ) ) {
+					do_action( 'sql_query_log', $query, false, $this->last_error );
+				}
+
 				return false;
 			}
 
@@ -817,7 +844,11 @@ class hyperdb extends wpdb {
 					$this->insert_id = 0;
 					$this->last_error = 'Invalid query';
 					$this->num_failed_queries++;
-					do_action( 'sql_query_log', $query, false, $this->last_error );
+
+					if ( function_exists( 'do_action' ) ) {
+						do_action( 'sql_query_log', $query, false, $this->last_error );
+					}
+
 					return false;
 				}
 			}
@@ -870,13 +901,32 @@ class hyperdb extends wpdb {
 			}
 		}
 
-		// If there is an error then take note of it
-		if ( $this->last_error = $this->ex_mysql_error( $this->dbh ) ) {
+		$this->last_error = $this->ex_mysql_error( $this->dbh );
+
+		if ( $this->last_error ) {
 			$this->last_errno = $this->ex_mysql_errno( $this->dbh );
 			$this->dbhname_heartbeats[$this->dbhname]['last_errno'] = $this->last_errno;
+
+			// Write failed, use fallback master connection
+			if ( HYPERDB_ER_OPTION_PREVENTS_STATEMENT == $this->last_errno && $this->unique_servers[ $this->dbhname ] > 1 && !empty( $this->unused_servers[ $this->dbhname ] ) ) {
+				// Stay away from this server
+				$this->disconnect( $this->dbhname );
+				$this->mark_server_read_only();
+
+				$msg = "Can't write to $this->dbhname - server switched to read-only mode. Retrying on configured fallback connection.";
+				$this->print_error( $msg );
+
+				// Try again and db_connect will use the next unused server
+				return $this->query( $query );
+			}
+
 			$this->print_error($this->last_error);
 			$this->num_failed_queries++;
-			do_action( 'sql_query_log', $query, false, $this->last_error );
+
+			if ( function_exists( 'do_action' ) ) {
+				do_action( 'sql_query_log', $query, false, $this->last_error );
+			}
+
 			return false;
 		}
 
@@ -916,7 +966,10 @@ class hyperdb extends wpdb {
 			$return_val = $this->num_rows;
 		}
 
-		do_action( 'sql_query_log', $query, $return_val, $this->last_error );
+		if ( function_exists( 'do_action' ) ) {
+			do_action( 'sql_query_log', $query, $return_val, $this->last_error );
+		}
+
 		return $return_val;
 	}
 
@@ -964,6 +1017,26 @@ class hyperdb extends wpdb {
 			return version_compare($version, '4.1', '>=');
 		case 'set_charset' :
 			return version_compare($version, '5.0.7', '>=');
+		case 'utf8mb4' :      // @since WP 4.1.0
+			if ( version_compare( $version, '5.5.3', '<' ) ) {
+				return false;
+			}
+			if ( $this->use_mysqli ) {
+				$client_version = mysqli_get_client_info();
+			} else {
+				$client_version = mysql_get_client_info();
+			}
+
+			/*
+			 * libmysql has supported utf8mb4 since 5.5.3, same as the MySQL server.
+			 * mysqlnd has supported utf8mb4 since 5.0.9.
+			 */
+			if ( false !== strpos( $client_version, 'mysqlnd' ) ) {
+				$client_version = preg_replace( '/^\D+([\d.]+).*/', '$1', $client_version );
+				return version_compare( $client_version, '5.0.9', '>=' );
+			} else {
+				return version_compare( $client_version, '5.5.3', '>=' );
+			}
 		endswitch;
 
 		return false;
@@ -1073,10 +1146,10 @@ class hyperdb extends wpdb {
 		return 'up';
 	}
 
-	function get_server_state( $host, $port, $timeout ) {
+	function get_server_state( $host, $port, $dbhname, $timeout ) {
 		// We still do the check_tcp_responsiveness() until we have
 		// mysql connect function with less than 1 second timeout
-		if ( $this->check_tcp_responsiveness ) {
+		if ( $this->check_tcp_responsiveness && $timeout > 0 ) {
 			$server_state = $this->check_tcp_responsiveness( $host, $port, $timeout );
 			if ( 'up' !== $server_state )
 				return $server_state;
@@ -1085,18 +1158,37 @@ class hyperdb extends wpdb {
 		if ( ! function_exists( 'apcu_store' ) )
 			return 'up';
 
-		$server_state = apcu_fetch( "server_state_$host$port" );
+		$server_state = apcu_fetch( "server_state_$host$port$dbhname" );
 		if ( ! $server_state )
 			return 'up';
 
 		return $server_state;
 	}
 
-	function mark_server_as_down( $host, $port, $apcu_ttl = 10 ) {
+	// Signal to other PHP workers that a server can not take writes
+	function mark_server_read_only() {
 		if ( ! function_exists( 'apcu_store' ) )
 			return;
 
-		apcu_add( "server_state_$host$port", 'down', $apcu_ttl );
+		$host = $this->last_connection['host'];
+		$port = $this->last_connection['port'];
+		$dbhname = $this->dbhname;
+
+		apcu_add( "server_readonly_$host$port$dbhname", 'read_only', 120 );
+	}
+
+	function server_marked_read_only( $host, $port, $dbhname ) {
+		if ( ! function_exists( 'apcu_store' ) )
+			return false;
+
+		return 'read_only' === apcu_fetch( "server_readonly_$host$port$dbhname" );
+	}
+
+	function mark_server_as_down( $host, $port, $dbhname, $apcu_ttl = 10 ) {
+		if ( ! function_exists( 'apcu_store' ) )
+			return;
+
+		apcu_add( "server_readonly_$host$port$dbhname", 'down', $apcu_ttl );
 	}
 
 	function set_connect_timeout( $tag, $use_master, $tries_remaining ) {
@@ -1240,7 +1332,7 @@ class hyperdb extends wpdb {
 		if ( $persistent )
 			$db_host = "p:{$db_host}";
 
-        $retval = mysqli_real_connect( $dbh, $db_host, $db_user, $db_password, null, $port, $socket, $client_flags );
+		$retval = mysqli_real_connect( $dbh, $db_host, $db_user, $db_password, null, $port, $socket, $client_flags );
 
 		if ( ! $retval || $dbh->connect_errno )
 			return false;

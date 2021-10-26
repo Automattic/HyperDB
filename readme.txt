@@ -76,6 +76,13 @@ Since HyperDB attempts a connection only when a query is made, your WordPress in
 
 == Changelog ==
 
+= 1.8 =
+* Support for fallback master connections
+* Add support for marking servers read-only
+* Fix the issue when `do_action()` is not available
+* Use APCu to cache the results of server responsiveness
+* Add support for the `utf8mb4` server capability
+
 = 1.7 =
 * Add support for information_schema and transactions
 * Requires WordPress 4.2 for wpdb::get_table_from_query()
