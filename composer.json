@@ -10,5 +10,9 @@
     },
     "config": {
         "sort-packages": true
+    },
+    "scripts": {
+        "phpcs": "phpcs",
+        "phpcs:fix": "phpcbf"
     }
 }
