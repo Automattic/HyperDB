@@ -1,0 +1,14 @@
+{
+    "name": "automattic/hyperdb",
+    "description": "HyperDB is an advanced database class that supports replication, failover, load balancing, and partitioning",
+    "license": "GPL-2.0-or-later",
+    "require-dev": {
+        "automattic/vipwpcs": "2.3.3",
+        "phpcompatibility/phpcompatibility-wp": "2.1.2",
+        "dealerdirect/phpcodesniffer-composer-installer": "0.7.1",
+        "johnpbloch/wordpress-core": "^5.8"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

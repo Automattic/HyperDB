@@ -1,0 +1,3 @@
+/*.xml.dist             export-ignore
+/.*                     export-ignore
+/composer.*             export-ignore

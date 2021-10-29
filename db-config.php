@@ -1,5 +1,5 @@
 <?php
-
+// phpcs:disable Squiz.PHP.CommentedOutCode.Found
 /**
  * HyperDB configuration file
  *
@@ -77,13 +77,13 @@ $wpdb->check_tcp_responsiveness = true;
  * password      (required) MySQL user password.
  * name          (required) MySQL database name.
  * read          (optional) Whether server is readable. Default is 1 (readable).
- *						   Also used to assign preference. See "Network topology".
+ *                         Also used to assign preference. See "Network topology".
  * write         (optional) Whether server is writable. Default is 1 (writable).
  *                          Also used to assign preference in multi-master mode.
  * dataset       (optional) Name of dataset. Default is 'global'.
  * timeout       (optional) Seconds to wait for TCP responsiveness. Default is 0.2
  * lag_threshold (optional) The minimum lag on a slave in seconds before we consider it lagged. 
- *							Set null to disable. When not set, the value of $wpdb->default_lag_threshold is used.
+ *                          Set null to disable. When not set, the value of $wpdb->default_lag_threshold is used.
  */
 
 /**
@@ -334,7 +334,7 @@ function add_db_server($dataset, $part, $dc, $read, $write, $host, $lhost, $name
  */
 
 /*
- 
+
 $wpdb->lag_cache_ttl = 30;
 $wpdb->shmem_key = ftok( __FILE__, "Y" );
 $wpdb->shmem_size = 128 * 1024;
@@ -372,7 +372,7 @@ function get_lag( $wpdb ) {
 	sem_acquire( $sem_id );
 	$segment = shm_attach( $wpdb->shmem_key, $wpdb->shmem_size, 0600 );
 	$lag_data = @shm_get_var( $segment, 0 );
-	
+
 	if ( !is_array( $lag_data ) )
 		$lag_data = array();
 
