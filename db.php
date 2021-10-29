@@ -13,11 +13,19 @@ Version: 1.8
 
 /** This file should be installed at ABSPATH/wp-content/db.php **/
 
+/** 
+ * @var wpdb|true
+ * @psalm-suppress InvalidGlobal
+ */
+global $wpdb;
+
 /** Load the wpdb class while preventing instantiation **/
 $wpdb = true;   // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 if ( defined( 'WPDB_PATH' ) ) {
+	/** @psalm-suppress UnresolvableInclude */
 	require_once WPDB_PATH;
 } else {
+	/** @psalm-suppress UnresolvableInclude */
 	require_once ABSPATH . WPINC . '/wp-db.php';
 }
 
@@ -1647,4 +1655,5 @@ class hyperdb extends wpdb {
 // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 $wpdb = new hyperdb();
 
+/** @psalm-suppress UnresolvableInclude */
 require DB_CONFIG_FILE;
