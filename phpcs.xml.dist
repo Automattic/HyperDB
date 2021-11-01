@@ -10,6 +10,7 @@
 	<arg name="basepath" value="."/>
 	<arg name="parallel" value="8"/>
 	<arg name="extensions" value="php"/>
+	<arg value="s"/>
 
 	<!-- Rules: Check PHP version compatibility - see
 		https://github.com/PHPCompatibility/PHPCompatibilityWP -->

@@ -4,9 +4,11 @@
     "license": "GPL-2.0-or-later",
     "require-dev": {
         "automattic/vipwpcs": "2.3.3",
-        "phpcompatibility/phpcompatibility-wp": "2.1.2",
         "dealerdirect/phpcodesniffer-composer-installer": "0.7.1",
-        "johnpbloch/wordpress-core": "^5.8"
+        "johnpbloch/wordpress-core": "^5.8",
+        "php-stubs/wordpress-stubs": "^5.8",
+        "phpcompatibility/phpcompatibility-wp": "2.1.2",
+        "vimeo/psalm": "^4.11"
     },
     "config": {
         "sort-packages": true
@@ -14,6 +16,7 @@
     "scripts": {
         "build": "git archive --format tgz --output hyperdb.tgz HEAD",
         "phpcs": "phpcs",
-        "phpcs:fix": "phpcbf"
+        "phpcs:fix": "phpcbf",
+        "psalm": "psalm --no-cache --long-progress"
     }
 }
