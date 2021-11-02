@@ -1141,7 +1141,7 @@ class hyperdb extends wpdb {
 
 	/**
 	 * The database version number
-	 * @param false|string|resource $dbh_or_table the databaese (the current database, the database housing the specified table, or the database of the mysql resource)
+	 * @param false|string|resource $dbh_or_table the database (the current database, the database housing the specified table, or the database of the mysql resource)
 	 * @return false|string false on failure, version number on success
 	 */
 	public function db_version( $dbh_or_table = false ) {
