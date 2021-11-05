@@ -1,5 +1,5 @@
 === HyperDB ===
-Contributors: matt, andy, ryan, mdawaffe, vnsavage, barry, westi, automattic
+Contributors: matt, andy, ryan, mdawaffe, vnsavage, barry, westi, automattic, wpcomvip
 Tags: mysql, scaling, performance, availability, WordPress.com
 Requires at least: 4.2
 Tested up to: 5.8.2
