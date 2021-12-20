@@ -90,7 +90,7 @@ class hyperdb extends wpdb {
 
 	/**
 	 * The current mysql link resource
-	 * @var resource
+	 * @var mysqli|resource|false|null
 	 */
 	public $dbh;
 
