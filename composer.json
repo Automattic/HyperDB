@@ -4,7 +4,7 @@
     "license": "GPL-2.0-or-later",
     "require-dev": {
         "automattic/vipwpcs": "2.3.3",
-        "dealerdirect/phpcodesniffer-composer-installer": "0.7.1",
+        "dealerdirect/phpcodesniffer-composer-installer": "0.7.2",
         "johnpbloch/wordpress-core": "^5.8",
         "php-stubs/wordpress-stubs": "^5.8",
         "phpcompatibility/phpcompatibility-wp": "2.1.2",
