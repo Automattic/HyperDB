@@ -11,7 +11,11 @@
         "vimeo/psalm": "^4.11"
     },
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "composer/package-versions-deprecated": true
+        }
     },
     "scripts": {
         "build": "git archive --format tgz --output hyperdb.tgz HEAD",
