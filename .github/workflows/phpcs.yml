@@ -4,6 +4,12 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+env:
+  PHP_VERSION: "7.4"
+
 jobs:
   codestyle:
     name: Run code style check
@@ -11,12 +17,12 @@ jobs:
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     steps:
       - name: Check out source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # tag=v3.0.2
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@448bd61c6fe9db2113173467e4c22b87ddc2971a # tag=v2.18.1
         with:
-          php-version: "7.4"
+          php-version: ${{ env.PHP_VERSION }}
           tools: automattic/vipwpcs, phpcompatibility/phpcompatibility-wp
 
       - name: Add error matcher
