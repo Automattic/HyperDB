@@ -234,6 +234,9 @@ class hyperdb extends wpdb {
 		}
 
 		$this->use_mysqli = $this->should_use_mysqli();
+		if ( $this->use_mysqli ) {
+			mysqli_report( MYSQLI_REPORT_OFF );
+		}
 
 		$this->init_charset();
 	}
