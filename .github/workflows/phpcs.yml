@@ -23,10 +23,13 @@ jobs:
         uses: shivammathur/setup-php@448bd61c6fe9db2113173467e4c22b87ddc2971a # tag=v2.18.1
         with:
           php-version: ${{ env.PHP_VERSION }}
-          tools: automattic/vipwpcs, phpcompatibility/phpcompatibility-wp
+          coverage: none
+
+      - name: Install Dependencies
+        uses: ramsey/composer-install@f680dac46551dffb2234a240d65ae806c2999dd6 # tag=2.1.0
 
       - name: Add error matcher
         run: echo "::add-matcher::$(pwd)/.github/checkstyle-problem-matcher.json"
 
       - name: Run style check
-        run: phpcs --report=checkstyle
+        run: vendor/bin/phpcs --report=checkstyle
