@@ -293,7 +293,7 @@ class hyperdb extends wpdb {
 	 */
 	public function get_hyper_servers( $operation = 'all', $dataset = 'global' ) {
 		if ( ! isset( $this->hyper_servers[ $dataset ] ) ) {
-			return [];
+			return array();
 		}
 
 		$operations = array( 'read', 'write' );
