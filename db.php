@@ -370,14 +370,14 @@ class hyperdb extends wpdb {
 		}
 
 		if ( ! isset( $args ) ) {
-			$args = array( &$this );
+			$args = array( $this );
 		} elseif ( is_array( $args ) ) {
 			// 8.0+ changed the behavior of call_user_func_array(), associative arrays would turn into named attributes
 			// Here we discard the keys and hope for the best
 			$args = array_values( $args );
-			$args[] = &$this;
+			$args[] = $this;
 		} else {
-			$args = array( $args, &$this );
+			$args = array( $args, $this );
 		}
 
 		foreach ( $this->hyper_callbacks[ $group ] as $func ) {
