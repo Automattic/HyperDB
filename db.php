@@ -372,6 +372,12 @@ class hyperdb extends wpdb {
 		if ( ! isset( $args ) ) {
 			$args = array( &$this );
 		} elseif ( is_array( $args ) ) {
+			// 8.0+ changed the behavior of call_user_func_array(), associative arrays would turn into named attributes
+			// Here we discard the keys and hope for the best
+			if ( version_compare( PHP_VERSION, '8.0.0', '>=' ) ) {
+				$args = array_values( $args );
+			}
+
 			$args[] = &$this;
 		} else {
 			$args = array( $args, &$this );
