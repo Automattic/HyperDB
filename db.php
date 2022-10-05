@@ -557,7 +557,13 @@ class hyperdb extends wpdb {
 		}
 
 		// Make a list of at least $this->min_tries connections to try, repeating as necessary.
-		if ( ! isset( $this->unused_servers[ $dbhname ] ) ) {
+		//
+		// $this->unused_servers[ $dbhname ] might be either:
+		//
+		// * Unset if it's the first time the list of unused servers is being generated, or
+		// * An empty array if all the used servers got disconnected, e.g. there was a single server for a dataset, and
+		//   it didn't respond to ping.
+		if ( empty( $this->unused_servers[ $dbhname ] ) ) {
 			// Put the groups in order by priority
 			ksort( $this->hyper_servers[ $dataset ][ $operation ] );
 
