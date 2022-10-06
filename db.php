@@ -160,7 +160,7 @@ class hyperdb extends wpdb {
 	 * The log of db connections made and the time each one took
 	 * @var array
 	 */
-	public $db_connections;
+	public $db_connections = array();
 
 	/**
 	 * The list of unclosed connections sorted by LRU
