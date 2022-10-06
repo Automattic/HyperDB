@@ -290,31 +290,38 @@ function add_db_server($dataset, $part, $dc, $read, $write, $host, $lhost, $name
 	// dc is not used in hyperdb. This produces the desired effect of
 	// trying to connect to local servers before remote servers. Also
 	// increases time allowed for TCP responsiveness check.
-	if ( !empty($dc) && defined(DATACENTER) && $dc != DATACENTER ) {
-		if ( $read )
+	if ( ! empty( $dc ) && defined( 'DATACENTER' ) && $dc != DATACENTER ) {
+		if ( $read ) {
 			$read += 10000;
-		if ( $write ) 
+		}
+
+		if ( $write ) {
 			$write += 10000;
+		}
+
 		$timeout = 0.7;
 	}
 
 	// You'll need a hyperdb::add_callback() callback function to use partitioning.
 	// $wpdb->add_callback( 'my_func' );
-	if ( $part )
+	if ( $part ) {
 		$dataset = $dataset . '_' . $part;
+	}
 
-	$database = compact('dataset', 'read', 'write', 'host', 'name', 'user', 'password', 'timeout');
+	$database = compact( 'dataset', 'read', 'write', 'host', 'name', 'user', 'password', 'timeout' );
 
-	$wpdb->add_database($database);
+	$wpdb->add_database( $database );
 
 	// lhost is not used in hyperdb. This configures hyperdb with an
 	// additional server to represent the local hostname so it tries to
 	// connect over the private interface before the public one.
-	if ( !empty( $lhost ) && $lhost !== $host ) {
-		if ( $read )
+	if ( ! empty( $lhost ) && $lhost !== $host ) {
+		if ( $read ) {
 			$database['read'] = $read - 1;
-		if ( $write )
+		}
+		if ( $write ) {
 			$database['write'] = $write - 1;
+		}
 		$wpdb->add_database( $database );
 	}
 }
