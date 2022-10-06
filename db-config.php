@@ -284,7 +284,7 @@ function my_db_callback($query, $wpdb) {
  * @param string $password Database password.
  */
 /*
-function add_db_server($dataset, $part, $dc, $read, $write, $host, $lhost, $name, $user, $password, $timeout = 0.2 ) {
+function add_db_server( $dataset, $part, $dc, $read, $write, $host, $lhost, $name, $user, $password, $timeout = 0.2 ) {
 	global $wpdb;
 
 	// dc is not used in hyperdb. This produces the desired effect of
@@ -321,9 +321,11 @@ function add_db_server($dataset, $part, $dc, $read, $write, $host, $lhost, $name
 		if ( $read ) {
 			$database['read'] = $read - 1;
 		}
+
 		if ( $write ) {
 			$database['write'] = $write - 1;
 		}
+
 		$wpdb->add_database( $database );
 	}
 }
