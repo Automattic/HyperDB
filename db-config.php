@@ -316,6 +316,8 @@ function add_db_server($dataset, $part, $dc, $read, $write, $host, $lhost, $name
 	// additional server to represent the local hostname so it tries to
 	// connect over the private interface before the public one.
 	if ( ! empty( $lhost ) && $lhost !== $host ) {
+		$database['host'] = $lhost;
+
 		if ( $read ) {
 			$database['read'] = $read - 1;
 		}
