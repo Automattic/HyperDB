@@ -310,7 +310,7 @@ function add_db_server($dataset, $part, $dc, $read, $write, $host, $lhost, $name
 	// lhost is not used in hyperdb. This configures hyperdb with an
 	// additional server to represent the local hostname so it tries to
 	// connect over the private interface before the public one.
-	if ( !empty( $lhost ) ) {
+	if ( !empty( $lhost ) && $lhost !== $host ) {
 		if ( $read )
 			$database['read'] = $read - 1;
 		if ( $write )
