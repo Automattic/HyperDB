@@ -187,15 +187,15 @@ class hyperdb extends wpdb {
 	public $unique_servers = array();
 
 	/**
- 	 * A list of servers we found to be read-only
- 	 * @var array
- 	 */
+	 * A list of servers we found to be read-only
+	 * @var array
+	 */
 	public $read_only_servers = array();
 
 	/**
- 	 * A list of servers' state
- 	 * @var array
- 	 */
+	 * A list of servers' state
+	 * @var array
+	 */
 	public $servers_state = array();
 
 	/**
@@ -566,7 +566,7 @@ class hyperdb extends wpdb {
 		ksort( $this->hyper_servers[ $dataset ][ $operation ] );
 
 		// Make a list of at least $this->min_tries connections to try, repeating as necessary.
-		$servers = array();
+		$servers                          = array();
 		$this->unique_servers[ $dbhname ] = array();
 		do {
 			foreach ( $this->hyper_servers[ $dataset ][ $operation ] as $group => $items ) {
@@ -575,8 +575,8 @@ class hyperdb extends wpdb {
 				foreach ( $keys as $key ) {
 					$servers[] = compact( 'group', 'key' );
 
-					if ( ! isset( $this->unique_servers[ $dbhname ][ $items[$key]['host'] ] ) ) {
-						$this->unique_servers[ $dbhname ][ $items[$key]['host'] ] = true;
+					if ( ! isset( $this->unique_servers[ $dbhname ][ $items[ $key ]['host'] ] ) ) {
+						$this->unique_servers[ $dbhname ][ $items[ $key ]['host'] ] = true;
 					}
 				}
 			}
@@ -584,14 +584,14 @@ class hyperdb extends wpdb {
 			if ( 0 === count( $this->unique_servers[ $dbhname ] ) ) {
 				return $this->log_and_bail( "No database servers were found to match the query ($this->table, $dataset)" );
 			}
-		} while ( count( $servers ) < $this->min_tries );
+		} while ( count( $servers ) < $this->min_tries ); // phpcs:ignore Squiz.PHP.DisallowSizeFunctionsInLoops.Found
 
 		// Connect to a database server
 		do {
-			$unique_lagged_slaves = array();
+			$unique_lagged_slaves    = array();
 			$unique_readonly_masters = array();
-			$success              = false;
-			$tries_remaining      = count( $servers );
+			$success                 = false;
+			$tries_remaining         = count( $servers );
 
 			foreach ( $servers as $group_key ) {
 				--$tries_remaining;
@@ -1012,8 +1012,7 @@ class hyperdb extends wpdb {
 			if ( HYPERDB_ER_OPTION_PREVENTS_STATEMENT == $this->last_errno &&
 				false !== strpos( $this->last_error, 'read-only' ) &&
 				count( $this->unique_servers[ $this->dbhname ] ) > 1 &&
-				! $this->is_server_marked_read_only() )
-			{
+				! $this->is_server_marked_read_only() ) {
 				// Stay away from this server
 				$this->disconnect( $this->dbhname );
 				$this->mark_server_read_only();
@@ -1291,7 +1290,7 @@ class hyperdb extends wpdb {
 			return 'up';
 		}
 
-		return $this->servers_state[ "$host:$port" ] = $server_state;
+		return $this->servers_state[ "$host:$port" ] = $server_state; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments.Found
 	}
 
 	public function mark_server_as_down( $host, $port, $apcu_ttl = 10 ) {
@@ -1328,10 +1327,10 @@ class hyperdb extends wpdb {
 			return false;
 		}
 
-		if ( 'read_only' !== apcu_fetch( "server_readonly_$host_key" ) )
+		if ( 'read_only' !== apcu_fetch( "server_readonly_$host_key" ) ) //phpcs:ignore Generic.ControlStructures.InlineControlStructure.NotAllowed
 			return false;
 
-		return $this->read_only_servers[ $host_key ] = true;
+		return $this->read_only_servers[ $host_key ] = true; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments.Found
 	}
 
 	public function set_connect_timeout( $tag, $use_master, $tries_remaining ) {
