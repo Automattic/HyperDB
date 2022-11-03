@@ -13,7 +13,7 @@ Version: 1.9
 
 /** This file should be installed at ABSPATH/wp-content/db.php **/
 
-/**
+/** 
  * @var wpdb|true
  * @psalm-suppress InvalidGlobal
  */
@@ -293,26 +293,6 @@ class hyperdb extends wpdb {
 	 */
 	public function add_callback( $callback, $group = 'dataset' ) {
 		$this->hyper_callbacks[ $group ][] = $callback;
-	}
-
-	/**
-	 * Get array of $hyper_servers
-	 *
-	 * @param $operation Returns servers with both 'read' and 'write' operations if none passed in.
-	 * @param $dataset Defaults to 'global' if none passed in.
-	 * @return array $hyper_servers
-	 */
-	public function get_hyper_servers( $operation = 'all', $dataset = 'global' ) {
-		if ( ! isset( $this->hyper_servers[ $dataset ] ) ) {
-			return array();
-		}
-
-		$operations = array( 'read', 'write' );
-		if ( in_array( $operation, $operations, true ) ) {
-			return $this->hyper_servers[ $dataset ][ $operation ];
-		}
-
-		return $this->hyper_servers[ $dataset ];
 	}
 
 	/**
