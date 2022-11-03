@@ -1578,6 +1578,10 @@ class hyperdb extends wpdb {
 			return @mysql_num_fields( $result );
 		}
 
+		if ( ! $this->is_mysql_result( $result ) ) {
+			return false;
+		}
+
 		return @mysqli_num_fields( $result );
 	}
 
