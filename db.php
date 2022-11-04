@@ -6,7 +6,7 @@ Plugin URI: https://wordpress.org/plugins/hyperdb/
 Description: An advanced database class that supports replication, failover, load balancing, and partitioning.
 Author: Automattic
 License: GPLv2 or later
-Version: 1.8
+Version: 1.9
 */
 
 // phpcs:disable Squiz.PHP.CommentedOutCode.Found
@@ -24,7 +24,12 @@ $wpdb = true;   // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 if ( defined( 'WPDB_PATH' ) ) {
 	/** @psalm-suppress UnresolvableInclude */
 	require_once WPDB_PATH;
+} elseif ( file_exists( ABSPATH . WPINC . '/class-wpdb.php' ) ) {
+	// WP 6.1 and later.
+	/** @psalm-suppress UnresolvableInclude */
+	require_once ABSPATH . WPINC . '/class-wpdb.php';
 } else {
+	// WP 6.0 and earlier.
 	/** @psalm-suppress UnresolvableInclude */
 	require_once ABSPATH . WPINC . '/wp-db.php';
 }
