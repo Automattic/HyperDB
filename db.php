@@ -24,7 +24,12 @@ $wpdb = true;   // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 if ( defined( 'WPDB_PATH' ) ) {
 	/** @psalm-suppress UnresolvableInclude */
 	require_once WPDB_PATH;
+} elseif ( file_exists( ABSPATH . WPINC . '/class-wpdb.php' ) ) {
+	// WP 6.1 and later.
+	/** @psalm-suppress UnresolvableInclude */
+	require_once ABSPATH . WPINC . '/class-wpdb.php';
 } else {
+	// WP 6.0 and earlier.
 	/** @psalm-suppress UnresolvableInclude */
 	require_once ABSPATH . WPINC . '/wp-db.php';
 }
