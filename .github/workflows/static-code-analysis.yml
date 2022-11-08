@@ -25,7 +25,7 @@ jobs:
           php-version: ${{ env.PHP_VERSION }}
 
       - name: Install dependencies
-        uses: ramsey/composer-install@f680dac46551dffb2234a240d65ae806c2999dd6 # tag=2.1.0
+        uses: ramsey/composer-install@83af392bf5f031813d25e6fe4cd626cdba9a2df6 # tag=2.2.0
 
       - name: Run psalm
         run: composer psalm -- --output-format=github
