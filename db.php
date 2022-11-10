@@ -435,6 +435,12 @@ class hyperdb extends wpdb {
 			if ( ! $this->ex_mysql_select_db( DB_NAME, $this->dbh ) ) {
 				return $this->log_and_bail( 'We were unable to select the database' );
 			}
+
+			// Set the SQL mode 
+			if ( is_callable( $this, 'set_sql_mode' ) ) {
+				$this->set_sql_mode();
+			}
+
 			if ( ! empty( $this->charset ) ) {
 				$collation_query = "SET NAMES '$this->charset'";
 				if ( ! empty( $this->collate ) ) {
@@ -773,7 +779,12 @@ class hyperdb extends wpdb {
 
 		$this->set_charset( $this->dbhs[ $dbhname ], $charset, $collate );
 
-		$this->dbh = $this->dbhs[ $dbhname ]; // needed by $wpdb->_real_escape()
+		$this->dbh = $this->dbhs[ $dbhname ]; // needed by $wpdb->_real_escape() and `$wpdb->set_sql_mode()`
+
+		// Set the SQL mode 
+		if ( is_callable( $this, 'set_sql_mode' ) ) {
+			$this->set_sql_mode();
+		}
 
 		$this->last_used_server = compact( 'host', 'user', 'name', 'read', 'write' );
 
