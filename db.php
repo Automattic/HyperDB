@@ -13,7 +13,7 @@ Version: 1.9
 
 /** This file should be installed at ABSPATH/wp-content/db.php **/
 
-/** 
+/**
  * @var wpdb|true
  * @psalm-suppress InvalidGlobal
  */
