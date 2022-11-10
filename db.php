@@ -296,26 +296,6 @@ class hyperdb extends wpdb {
 	}
 
 	/**
-	 * Get array of $hyper_servers
-	 *
-	 * @param $operation Returns servers with both 'read' and 'write' operations if none passed in.
-	 * @param $dataset Defaults to 'global' if none passed in.
-	 * @return array $hyper_servers
-	 */
-	public function get_hyper_servers( $operation = 'all', $dataset = 'global' ) {
-		if ( ! isset( $this->hyper_servers[ $dataset ] ) ) {
-			return array();
-		}
-
-		$operations = array( 'read', 'write' );
-		if ( in_array( $operation, $operations, true ) ) {
-			return $this->hyper_servers[ $dataset ][ $operation ];
-		}
-
-		return $this->hyper_servers[ $dataset ];
-	}
-
-	/**
 	 * Find the table to be used for query routing. Falls back on
 	 * core get_table_from_query after checking for special cases.
 	 * @param string query
