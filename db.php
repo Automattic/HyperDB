@@ -896,8 +896,9 @@ class hyperdb extends wpdb {
 
 		if ( preg_match( '/^\s*SELECT\s+FOUND_ROWS(\s*)/i', $query ) ) {
 			if ( $this->is_mysql_result( $this->last_found_rows_result ) ) {
-				$this->result = $this->last_found_rows_result;
-				$elapsed      = 0;
+				$this->result                 = $this->last_found_rows_result;
+				$this->last_found_rows_result = null;
+				$elapsed                      = 0;
 			} else {
 				$this->print_error( 'Attempted SELECT FOUND_ROWS() without prior SQL_CALC_FOUND_ROWS.' );
 				return false;
