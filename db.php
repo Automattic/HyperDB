@@ -725,6 +725,14 @@ class hyperdb extends wpdb {
 					$referrer .= (string) $_SERVER['REQUEST_URI'];
 				}
 
+				if ( ! isset( $tcp ) ) {
+					$tcp = '';
+				}
+
+				if ( ! isset( $server ) ) {
+					$server = '';
+				}
+
 				$success                = false;
 				$this->last_connection  = compact( 'dbhname', 'host', 'port', 'user', 'name', 'tcp', 'elapsed', 'success' );
 				$this->db_connections[] = $this->last_connection;
