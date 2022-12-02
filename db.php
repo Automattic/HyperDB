@@ -1149,6 +1149,16 @@ class hyperdb extends wpdb {
 	 * @return false|string false on failure, version number on success
 	 */
 	public function db_version( $dbh_or_table = false ) {
+		$server_info = $this->db_server_info( $dbh_or_table );
+		return $server_info ? preg_replace( '/[^0-9.].*/', '', $server_info ) : false;
+	}
+
+	/**
+	 * Retrieves full database server information
+	 * @param false|string|resource $dbh_or_table the database (the current database, the database housing the specified table, or the database of the mysql resource)
+	 * @return string|false Server info on success, false on failure
+	 */
+	public function db_server_info( $dbh_or_table = false ) {
 		if ( ! $dbh_or_table && $this->dbh ) {
 			$dbh =& $this->dbh;
 		} elseif ( $this->is_mysql_connection( $dbh_or_table ) ) {
@@ -1157,10 +1167,7 @@ class hyperdb extends wpdb {
 			$dbh = $this->db_connect( "SELECT FROM $dbh_or_table $this->users" );
 		}
 
-		if ( $dbh ) {
-			return preg_replace( '/[^0-9.].*/', '', $this->ex_mysql_get_server_info( $dbh ) );
-		}
-		return false;
+		return $dbh ? $this->ex_mysql_get_server_info( $dbh ) : false;
 	}
 
 	/**
