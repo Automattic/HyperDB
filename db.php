@@ -782,7 +782,7 @@ class hyperdb extends wpdb {
 		$this->dbh = $this->dbhs[ $dbhname ]; // needed by $wpdb->_real_escape() and `$wpdb->set_sql_mode()`
 
 		// Set the SQL mode 
-		if ( is_callable( $this, 'set_sql_mode' ) ) {
+		if ( is_callable( array($this, 'set_sql_mode') ) ) {
 			$this->set_sql_mode();
 		}
 
