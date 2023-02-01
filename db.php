@@ -436,8 +436,8 @@ class hyperdb extends wpdb {
 				return $this->log_and_bail( 'We were unable to select the database' );
 			}
 
-			// Set the SQL mode 
-			if ( is_callable( $this, 'set_sql_mode' ) ) {
+			// Set the SQL mode.
+			if ( is_callable( array( $this, 'set_sql_mode' ) ) ) {
 				$this->set_sql_mode();
 			}
 
@@ -781,8 +781,8 @@ class hyperdb extends wpdb {
 
 		$this->dbh = $this->dbhs[ $dbhname ]; // needed by $wpdb->_real_escape() and `$wpdb->set_sql_mode()`
 
-		// Set the SQL mode 
-		if ( is_callable( array($this, 'set_sql_mode') ) ) {
+		// Set the SQL mode.
+		if ( is_callable( array( $this, 'set_sql_mode' ) ) ) {
 			$this->set_sql_mode();
 		}
 
