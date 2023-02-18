@@ -6,14 +6,14 @@ Plugin URI: https://wordpress.org/plugins/hyperdb/
 Description: An advanced database class that supports replication, failover, load balancing, and partitioning.
 Author: Automattic
 License: GPLv2 or later
-Version: 1.8
+Version: 1.9
 */
 
 // phpcs:disable Squiz.PHP.CommentedOutCode.Found
 
 /** This file should be installed at ABSPATH/wp-content/db.php **/
 
-/** 
+/**
  * @var wpdb|true
  * @psalm-suppress InvalidGlobal
  */
@@ -24,7 +24,12 @@ $wpdb = true;   // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 if ( defined( 'WPDB_PATH' ) ) {
 	/** @psalm-suppress UnresolvableInclude */
 	require_once WPDB_PATH;
+} elseif ( file_exists( ABSPATH . WPINC . '/class-wpdb.php' ) ) {
+	// WP 6.1 and later.
+	/** @psalm-suppress UnresolvableInclude */
+	require_once ABSPATH . WPINC . '/class-wpdb.php';
 } else {
+	// WP 6.0 and earlier.
 	/** @psalm-suppress UnresolvableInclude */
 	require_once ABSPATH . WPINC . '/wp-db.php';
 }
@@ -92,7 +97,7 @@ class hyperdb extends wpdb {
 	 * The current mysql link resource
 	 * @var mysqli|resource|false|null
 	 */
-	public $dbh;
+	protected $dbh;
 
 	/**
 	 * Associative array (dbhname => dbh) for established mysql connections
@@ -160,7 +165,7 @@ class hyperdb extends wpdb {
 	 * The log of db connections made and the time each one took
 	 * @var array
 	 */
-	public $db_connections;
+	public $db_connections = array();
 
 	/**
 	 * The list of unclosed connections sorted by LRU
@@ -181,16 +186,22 @@ class hyperdb extends wpdb {
 	public $used_servers = array();
 
 	/**
-	 * Lookup array (dbhname => (group, key)) prioritized for connections
-	 * @var array
-	 */
-	public $unused_servers = array();
-
-	/**
 	 * Lookup array (dbhname => int) of the number of unique servers in the config
 	 * @var array
 	 */
 	public $unique_servers = array();
+
+	/**
+	 * A list of servers we found to be read-only
+	 * @var array
+	 */
+	public $read_only_servers = array();
+
+	/**
+	 * A list of servers' state
+	 * @var array
+	 */
+	public $servers_state = array();
 
 	/**
 	 * Whether to save debug_backtrace in save_query_callback. You may wish
@@ -350,11 +361,14 @@ class hyperdb extends wpdb {
 		}
 
 		if ( ! isset( $args ) ) {
-			$args = array( &$this );
+			$args = array( $this );
 		} elseif ( is_array( $args ) ) {
-			$args[] = &$this;
+			// 8.0+ changed the behavior of call_user_func_array(), associative arrays would turn into named attributes
+			// Here we discard the keys and hope for the best
+			$args   = array_values( $args );
+			$args[] = $this;
 		} else {
-			$args = array( $args, &$this );
+			$args = array( $args, $this );
 		}
 
 		foreach ( $this->hyper_callbacks[ $group ] as $func ) {
@@ -533,49 +547,39 @@ class hyperdb extends wpdb {
 			return $this->log_and_bail( "No databases available with $this->table ($dataset)" );
 		}
 
-		// Make a list of at least $this->min_tries connections to try, repeating as necessary.
-		if ( ! isset( $this->unused_servers[ $dbhname ] ) ) {
-			// Put the groups in order by priority
-			ksort( $this->hyper_servers[ $dataset ][ $operation ] );
+		// Put the groups in order by priority
+		ksort( $this->hyper_servers[ $dataset ][ $operation ] );
 
-			$servers = array();
+		// Make a list of at least $this->min_tries connections to try, repeating as necessary.
+		$servers                          = array();
+		$this->unique_servers[ $dbhname ] = array();
+		do {
 			foreach ( $this->hyper_servers[ $dataset ][ $operation ] as $group => $items ) {
 				$keys = array_keys( $items );
 				shuffle( $keys );
 				foreach ( $keys as $key ) {
 					$servers[] = compact( 'group', 'key' );
+
+					if ( ! isset( $this->unique_servers[ $dbhname ][ $items[ $key ]['host'] ] ) ) {
+						$this->unique_servers[ $dbhname ][ $items[ $key ]['host'] ] = true;
+					}
 				}
 			}
 
-			$this->unique_servers[ $dbhname ] = count( $servers );
-			if ( 0 === $this->unique_servers[ $dbhname ] ) {
+			if ( 0 === count( $this->unique_servers[ $dbhname ] ) ) {
 				return $this->log_and_bail( "No database servers were found to match the query ($this->table, $dataset)" );
 			}
-
-			$this->unused_servers[ $dbhname ] = $servers;
-
-			// Repeat the server list until there are enough for retries (unless master has fallbacks)
-			if ( ! ( $use_master && $this->unique_servers[ $dbhname ] > 1 ) ) {
-				// phpcs:ignore Squiz.PHP.DisallowSizeFunctionsInLoops.Found
-				while ( count( $this->unused_servers[ $dbhname ] ) < $this->min_tries ) {
-					$this->unused_servers[ $dbhname ] = array_merge( $this->unused_servers[ $dbhname ], $servers );
-				}
-			}
-		}
+		} while ( count( $servers ) < $this->min_tries ); // phpcs:ignore Squiz.PHP.DisallowSizeFunctionsInLoops.Found
 
 		// Connect to a database server
 		do {
-			$unique_lagged_slaves = array();
-			$success              = false;
+			$unique_lagged_slaves    = array();
+			$unique_readonly_masters = array();
+			$success                 = false;
+			$tries_remaining         = count( $servers );
 
-			// phpcs:ignore WordPress.CodeAnalysis.AssignmentInCondition.FoundInWhileCondition
-			while ( ( $group_key = array_shift( $this->unused_servers[ $dbhname ] ) ) ) {
-				$tries_remaining = count( $this->unused_servers[ $dbhname ] );
-
-				// If all servers are lagged, we need to start ignoring the lag and retry
-				if ( count( $unique_lagged_slaves ) == $this->unique_servers[ $dbhname ] ) {
-					break;
-				}
+			foreach ( $servers as $group_key ) {
+				--$tries_remaining;
 
 				// Variables: $group, $key
 				extract( $group_key, EXTR_OVERWRITE );
@@ -616,10 +620,15 @@ class hyperdb extends wpdb {
 					$min_group = $group;
 				}
 
-				// Skip master if read-only and fallback masters are configured
-				if ( $use_master && $this->unique_servers[ $dbhname ] > 1 ) {
-					// Load server state from acpu, bypassing check_tcp_responsiveness()
-					if ( $this->server_marked_read_only( $host, $port, $dbhname ) ) {
+				// If a master is read-only and we have others which might not be RO, go to the next one
+				if ( $use_master && $this->unique_servers[ $dbhname ] > 1 && empty( $ignore_server_read_only ) ) {
+					if ( count( $unique_readonly_masters ) == count( $this->unique_servers[ $dbhname ] ) ) {
+						$ignore_server_read_only = true; // All are read-only, ignore RO and retry
+						continue 2;
+					}
+
+					if ( $this->is_server_marked_read_only( $host, $port ) ) {
+						$unique_readonly_masters[ "$host:$port" ] = true;
 						continue;
 					}
 				}
@@ -636,7 +645,7 @@ class hyperdb extends wpdb {
 				) {
 					// If it is the last lagged slave and it is with the best preference we will ignore its lag
 					if ( ! isset( $unique_lagged_slaves[ "$host:$port" ] )
-						&& count( $unique_lagged_slaves ) + 1 == $this->unique_servers[ $dbhname ]
+						&& count( $unique_lagged_slaves ) + 1 == count( $this->unique_servers[ $dbhname ] )
 						&& $group == $min_group ) {
 						$this->lag_threshold = null;
 					} else {
@@ -672,7 +681,7 @@ class hyperdb extends wpdb {
 						&& ( $lagged_status = $this->get_lag() ) === HYPERDB_LAG_BEHIND // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments.FoundInControlStructure
 						&& ! (
 							! isset( $unique_lagged_slaves[ "$host:$port" ] )
-							&& count( $unique_lagged_slaves ) + 1 === $this->unique_servers[ $dbhname ]
+							&& count( $unique_lagged_slaves ) + 1 === count( $this->unique_servers[ $dbhname ] )
 							&& $group == $min_group
 						)
 					) {
@@ -703,7 +712,7 @@ class hyperdb extends wpdb {
 				$errno = $this->ex_mysql_errno();
 				if ( ( HYPERDB_CONN_HOST_ERROR == $errno || HYPERDB_CONNNECTION_ERROR == $errno ) &&
 					( 'up' == $server_state || ! $tries_remaining ) ) {
-					$this->mark_server_as_down( $host, $port, $dbhname );
+					$this->mark_server_as_down( $host, $port );
 					$server_state = 'down';
 				}
 
@@ -716,6 +725,14 @@ class hyperdb extends wpdb {
 				if ( ! empty( $_SERVER['REQUEST_URI'] ) ) {
 					// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- print_error() will sanitize the entire message
 					$referrer .= (string) $_SERVER['REQUEST_URI'];
+				}
+
+				if ( ! isset( $tcp ) ) {
+					$tcp = '';
+				}
+
+				if ( ! isset( $server ) ) {
+					$server = '';
 				}
 
 				$success                = false;
@@ -889,8 +906,9 @@ class hyperdb extends wpdb {
 
 		if ( preg_match( '/^\s*SELECT\s+FOUND_ROWS(\s*)/i', $query ) ) {
 			if ( $this->is_mysql_result( $this->last_found_rows_result ) ) {
-				$this->result = $this->last_found_rows_result;
-				$elapsed      = 0;
+				$this->result                 = $this->last_found_rows_result;
+				$this->last_found_rows_result = null;
+				$elapsed                      = 0;
 			} else {
 				$this->print_error( 'Attempted SELECT FOUND_ROWS() without prior SQL_CALC_FOUND_ROWS.' );
 				return false;
@@ -987,7 +1005,10 @@ class hyperdb extends wpdb {
 			$this->dbhname_heartbeats[ $this->dbhname ]['last_errno'] = $this->last_errno;
 
 			// Write failed, use fallback master connection
-			if ( HYPERDB_ER_OPTION_PREVENTS_STATEMENT == $this->last_errno && $this->unique_servers[ $this->dbhname ] > 1 && ! empty( $this->unused_servers[ $this->dbhname ] ) ) {
+			if ( HYPERDB_ER_OPTION_PREVENTS_STATEMENT == $this->last_errno &&
+				false !== strpos( $this->last_error, 'read-only' ) &&
+				count( $this->unique_servers[ $this->dbhname ] ) > 1 &&
+				! $this->is_server_marked_read_only() ) {
 				// Stay away from this server
 				$this->disconnect( $this->dbhname );
 				$this->mark_server_read_only();
@@ -995,7 +1016,6 @@ class hyperdb extends wpdb {
 				$msg = "Can't write to $this->dbhname - server switched to read-only mode. Retrying on configured fallback connection.";
 				$this->print_error( $msg );
 
-				// Try again and db_connect will use the next unused server
 				return $this->query( $query );
 			}
 
@@ -1012,7 +1032,6 @@ class hyperdb extends wpdb {
 		if ( preg_match( '/^\s*(insert|delete|update|replace|alter)\s/i', $query ) ) {
 			$this->rows_affected = $this->ex_mysql_affected_rows( $this->dbh );
 
-			// Take note of the insert_id
 			if ( preg_match( '/^\s*(insert|replace)\s/i', $query ) ) {
 				$this->insert_id = $this->ex_mysql_insert_id( $this->dbh );
 			}
@@ -1119,6 +1138,8 @@ class hyperdb extends wpdb {
 				} else {
 					return version_compare( $client_version, '5.5.3', '>=' );
 				}
+			case 'utf8mb4_520': // since WP 4.6
+				return $this->has_cap( 'utf8mb4', $dbh_or_table ) && version_compare( $version, '5.6', '>=' );
 		endswitch;
 
 		return false;
@@ -1130,6 +1151,16 @@ class hyperdb extends wpdb {
 	 * @return false|string false on failure, version number on success
 	 */
 	public function db_version( $dbh_or_table = false ) {
+		$server_info = $this->db_server_info( $dbh_or_table );
+		return $server_info ? preg_replace( '/[^0-9.].*/', '', $server_info ) : false;
+	}
+
+	/**
+	 * Retrieves full database server information
+	 * @param false|string|resource $dbh_or_table the database (the current database, the database housing the specified table, or the database of the mysql resource)
+	 * @return string|false Server info on success, false on failure
+	 */
+	public function db_server_info( $dbh_or_table = false ) {
 		if ( ! $dbh_or_table && $this->dbh ) {
 			$dbh =& $this->dbh;
 		} elseif ( $this->is_mysql_connection( $dbh_or_table ) ) {
@@ -1138,10 +1169,7 @@ class hyperdb extends wpdb {
 			$dbh = $this->db_connect( "SELECT FROM $dbh_or_table $this->users" );
 		}
 
-		if ( $dbh ) {
-			return preg_replace( '/[^0-9.].*/', '', $this->ex_mysql_get_server_info( $dbh ) );
-		}
-		return false;
+		return $dbh ? $this->ex_mysql_get_server_info( $dbh ) : false;
 	}
 
 	/**
@@ -1252,45 +1280,60 @@ class hyperdb extends wpdb {
 			}
 		}
 
+		if ( ! empty( $this->servers_state[ "$host:$port" ] ) ) {
+			return $this->servers_state[ "$host:$port" ];
+		}
+
 		if ( ! function_exists( 'apcu_store' ) ) {
 			return 'up';
 		}
 
-		$server_state = apcu_fetch( "server_state_$host$port$dbhname" );
+		$server_state = apcu_fetch( "server_state_$host$port" );
 		if ( ! $server_state ) {
 			return 'up';
 		}
 
-		return $server_state;
+		return $this->servers_state[ "$host:$port" ] = $server_state; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments.Found
 	}
 
-	// Signal to other PHP workers that a server can not take writes
-	public function mark_server_read_only() {
+	public function mark_server_as_down( $host, $port, $apcu_ttl = 10 ) {
+		$this->servers_state[ "$host:$port" ] = 'down';
+
 		if ( ! function_exists( 'apcu_store' ) ) {
 			return;
 		}
 
-		$host    = $this->last_connection['host'];
-		$port    = $this->last_connection['port'];
-		$dbhname = $this->dbhname;
-
-		apcu_add( "server_readonly_$host$port$dbhname", 'read_only', 120 );
+		apcu_add( "server_state_$host$port", 'down', $apcu_ttl );
 	}
 
-	public function server_marked_read_only( $host, $port, $dbhname ) {
+	// Signal to other PHP workers that a server can not take writes
+	public function mark_server_read_only( $host = null, $port = null ) {
+		$host_key = $host ? "$host:$port" : $this->current_host;
+
+		$this->read_only_servers[ $host_key ] = true;
+
+		if ( ! function_exists( 'apcu_store' ) ) {
+			return;
+		}
+
+		apcu_add( "server_readonly_$host_key", 'read_only', 120 );
+	}
+
+	public function is_server_marked_read_only( $host = null, $port = null ) {
+		$host_key = $host ? "$host:$port" : $this->current_host;
+
+		if ( ! empty( $this->read_only_servers[ $host_key ] ) ) {
+			return true;
+		}
+
 		if ( ! function_exists( 'apcu_store' ) ) {
 			return false;
 		}
 
-		return 'read_only' === apcu_fetch( "server_readonly_$host$port$dbhname" );
-	}
+		if ( 'read_only' !== apcu_fetch( "server_readonly_$host_key" ) ) //phpcs:ignore Generic.ControlStructures.InlineControlStructure.NotAllowed
+			return false;
 
-	public function mark_server_as_down( $host, $port, $dbhname, $apcu_ttl = 10 ) {
-		if ( ! function_exists( 'apcu_store' ) ) {
-			return;
-		}
-
-		apcu_add( "server_readonly_$host$port$dbhname", 'down', $apcu_ttl );
+		return $this->read_only_servers[ $host_key ] = true; // phpcs:ignore Squiz.PHP.DisallowMultipleAssignments.Found
 	}
 
 	public function set_connect_timeout( $tag, $use_master, $tries_remaining ) {

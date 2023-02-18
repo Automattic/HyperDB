@@ -2,8 +2,8 @@
 Contributors: matt, andy, ryan, mdawaffe, vnsavage, barry, westi, automattic, wpcomvip
 Tags: mysql, scaling, performance, availability, WordPress.com
 Requires at least: 4.2
-Tested up to: 5.8.2
-Stable tag: 1.8
+Tested up to: 6.0.2
+Stable tag: 1.9
 License: GPLv2 or later
 
 HyperDB is an advanced database class that supports replication, failover, load balancing, and partitioning.
@@ -75,6 +75,19 @@ One way HyperDB differs from WPDB is that HyperDB does not attempt to connect to
 Since HyperDB attempts a connection only when a query is made, your WordPress installation will not kill the site with a database error, but will let the code decide what to do next on an unsuccessful query. If you want to do something different, like setting a custom error page or kill the site, you need to define the 'db_connection_error' callback in your db-config.php.
 
 == Changelog ==
+= 1.9 =
+* Restore the behavior where we retry failed connection attempts to masters;
+* Unbreak the logic for marking servers as down - in r2625068 the key for marking server as down was mistakenly changed to "server_readonly_$host$port" instead of "server_state_$host$port"
+* If all masters are marked as read-only, ignore the read-only flag and still try to connect; otherwise we might end up incorrectly breaking the master connections for 2 minutes (APCu cache time) if we had temporarily set read-only on them;
+* Fix a bug where having $dbhname in the server state keys can delay marking server as down or read_only by doing it once for all possible datasets and operations instead of once for the host+port;
+* Fix a bug where we could mark server as read-only even though the ER_OPTION_PREVENTS_STATEMENT error was returned for a different reason; now we match to make sure we actually have 'read-only' in the returned error;
+* Fix a bug where the correct tracking of the unique read-only servers or lagged slaves might fail if we have duplicate servers for the same dataset;
+* Fix a bug where we would not mark masters as read-only in HyperDB if they were set read-only on the server side after we already opened a connection;
+* Fix a bug where we might stop respecting the minimum configured amount of retries per dataset;
+* Revert the persistent unused_servers logic which was added in HyperDB 1.8 because: it can cause connection failures when the available servers are exhausted, we might use servers with wrong priorities, and not see newly added servers to HyperDB. Some examples of conditions which would trigger these behaviors include: server-side disconnects on timeout; when we manually disconnect open connections in long-running scripts; when we switch between different datasets on the same remote MySQL server; we've gone over the configured max_connections and started disconnecting existing connections to accomodate new ones;
+* Make sure the read_only and the downed logic still works in environments which don't have APCu or APCu is badly fragmented by adding local caching
+* Correct the dbh property type
+* PHP 8.0 compatibility for call_user_func_array() and db_connections attribute
 
 = 1.8 =
 * Support for fallback master connections

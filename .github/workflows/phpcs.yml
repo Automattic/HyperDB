@@ -17,16 +17,19 @@ jobs:
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     steps:
       - name: Check out source code
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # tag=v3.0.2
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # tag=v3.0.2
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@3eda58347216592f618bb1dff277810b6698e4ca # tag=v2.19.1
+        uses: shivammathur/setup-php@1a18b2267f80291a81ca1d33e7c851fe09e7dfc4 # tag=v2.21.2
         with:
           php-version: ${{ env.PHP_VERSION }}
-          tools: automattic/vipwpcs, phpcompatibility/phpcompatibility-wp
+          coverage: none
+
+      - name: Install Dependencies
+        uses: ramsey/composer-install@83af392bf5f031813d25e6fe4cd626cdba9a2df6 # tag=2.2.0
 
       - name: Add error matcher
         run: echo "::add-matcher::$(pwd)/.github/checkstyle-problem-matcher.json"
 
       - name: Run style check
-        run: phpcs --report=checkstyle
+        run: vendor/bin/phpcs --report=checkstyle
