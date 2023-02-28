@@ -1489,6 +1489,7 @@ class hyperdb extends wpdb {
 			$db_host = "p:{$db_host}";
 		}
 
+		mysqli_options( $dbh, MYSQLI_OPT_CONNECT_TIMEOUT, $this->ex_mysql_connect_timeout() );
 		$retval = mysqli_real_connect( $dbh, $db_host, $db_user, $db_password, null, $port, $socket, $client_flags );
 
 		if ( ! $retval || $dbh->connect_errno ) {
