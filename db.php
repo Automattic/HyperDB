@@ -950,6 +950,9 @@ class hyperdb extends wpdb {
 			// If we're writing to the database, make sure the query will write safely.
 			if ( $this->check_current_query && method_exists( $this, 'check_ascii' ) && ! $this->check_ascii( $query ) ) {
 				$stripped_query = $this->strip_invalid_text_from_query( $query );
+				// strip_invalid_text_from_query() can perform queries, so we need
+				// to flush again, just to make sure everything is clear.
+				$this->flush();			
 				if ( $stripped_query !== $query ) {
 					$this->insert_id  = 0;
 					$this->last_error = 'Invalid query';
