@@ -969,7 +969,7 @@ class hyperdb extends wpdb {
 			$elapsed = $this->timer_stop();
 			++$this->num_queries;
 
-			if ( preg_match( '/^\s*SELECT\s+SQL_CALC_FOUND_ROWS\s/i', $query ) ) {
+			if ( preg_match( '/^\s*SELECT\s+(DISTINCT\s+)?SQL_CALC_FOUND_ROWS\s/i', $query ) ) {
 				if ( false === strpos( $query, 'NO_SELECT_FOUND_ROWS' ) ) {
 					$this->timer_start();
 					$this->last_found_rows_result = $this->ex_mysql_query( 'SELECT FOUND_ROWS()', $this->dbh );
