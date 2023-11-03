@@ -341,7 +341,10 @@ class hyperdb extends wpdb {
 	public function is_write_query( $q ) {
 		// Quick and dirty: only SELECT statements are considered read-only.
 		$q = ltrim( $q, "\r\n\t (" );
-		return ! preg_match( '/^(?:SELECT|SHOW|DESCRIBE|DESC|EXPLAIN)\s/i', $q );
+		return (
+			! preg_match( '/^(?:SELECT|SHOW|DESCRIBE|DESC|EXPLAIN)\s/i', $q )
+			|| preg_match( '/(\sFOR UPDATE)/i', $q )
+		);	
 	}
 
 	/**
@@ -435,6 +438,12 @@ class hyperdb extends wpdb {
 			if ( ! $this->ex_mysql_select_db( DB_NAME, $this->dbh ) ) {
 				return $this->log_and_bail( 'We were unable to select the database' );
 			}
+			
+			// Set the SQL mode.
+			if ( is_callable( array( $this, 'set_sql_mode' ) ) ) {
+				$this->set_sql_mode();
+			}		
+			
 			if ( ! empty( $this->charset ) ) {
 				$collation_query = "SET NAMES '$this->charset'";
 				if ( ! empty( $this->collate ) ) {
@@ -596,6 +605,8 @@ class hyperdb extends wpdb {
 				// Overlay $server if it was extracted from a callback
 				if ( isset( $server ) && is_array( $server ) ) {
 					extract( $server, EXTR_OVERWRITE );
+				} else {
+					$server = null;		
 				}
 
 				// Split again in case $server had host:port
@@ -781,8 +792,13 @@ class hyperdb extends wpdb {
 
 		$this->set_charset( $this->dbhs[ $dbhname ], $charset, $collate );
 
-		$this->dbh = $this->dbhs[ $dbhname ]; // needed by $wpdb->_real_escape()
-
+		$this->dbh = $this->dbhs[ $dbhname ]; // needed by $wpdb->_real_escape() and `$wpdb->set_sql_mode()`
+		
+		// Set the SQL mode.
+		if ( is_callable( array( $this, 'set_sql_mode' ) ) ) {
+			$this->set_sql_mode();
+		}
+			
 		$this->last_used_server = compact( 'host', 'user', 'name', 'read', 'write' );
 
 		$this->used_servers[ $dbhname ] = $this->last_used_server;
@@ -934,6 +950,9 @@ class hyperdb extends wpdb {
 			// If we're writing to the database, make sure the query will write safely.
 			if ( $this->check_current_query && method_exists( $this, 'check_ascii' ) && ! $this->check_ascii( $query ) ) {
 				$stripped_query = $this->strip_invalid_text_from_query( $query );
+				// strip_invalid_text_from_query() can perform queries, so we need
+				// to flush again, just to make sure everything is clear.
+				$this->flush();			
 				if ( $stripped_query !== $query ) {
 					$this->insert_id  = 0;
 					$this->last_error = 'Invalid query';
@@ -1488,7 +1507,7 @@ class hyperdb extends wpdb {
 		if ( $persistent ) {
 			$db_host = "p:{$db_host}";
 		}
-
+		mysqli_options( $dbh, MYSQLI_OPT_CONNECT_TIMEOUT, $this->ex_mysql_connect_timeout() );
 		$retval = mysqli_real_connect( $dbh, $db_host, $db_user, $db_password, null, $port, $socket, $client_flags );
 
 		if ( ! $retval || $dbh->connect_errno ) {
