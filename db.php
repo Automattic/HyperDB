@@ -596,6 +596,8 @@ class hyperdb extends wpdb {
 				// Overlay $server if it was extracted from a callback
 				if ( isset( $server ) && is_array( $server ) ) {
 					extract( $server, EXTR_OVERWRITE );
+				} else {
+					$server = null;
 				}
 
 				// Split again in case $server had host:port
