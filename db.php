@@ -963,7 +963,8 @@ class hyperdb extends wpdb {
 				$this->ex_mysql_query( $statement_before_query, $this->dbh );
 			}
 
-			$this->result = $this->ex_mysql_query( $query, $this->dbh );
+			$this->result     = $this->ex_mysql_query( $query, $this->dbh );
+			$this->last_error = $this->ex_mysql_error( $this->dbh );
 
 			if ( $statement_after_query ) {
 				$query_for_log = "$query_for_log; $statement_after_query";
@@ -972,11 +973,12 @@ class hyperdb extends wpdb {
 			$elapsed = $this->timer_stop();
 			++$this->num_queries;
 
-			if ( preg_match( '/^\s*SELECT\s+SQL_CALC_FOUND_ROWS\s/i', $query ) ) {
+			if ( preg_match( '/^\s*SELECT\s+SQL_CALC_FOUND_ROWS\s/i', $query ) && false !== $this->result ) {
 				if ( false === strpos( $query, 'NO_SELECT_FOUND_ROWS' ) ) {
 					$this->timer_start();
 					$this->last_found_rows_result = $this->ex_mysql_query( 'SELECT FOUND_ROWS()', $this->dbh );
 					$elapsed                     += $this->timer_stop();
+					$this->last_error             = $this->ex_mysql_error( $this->dbh );
 					++$this->num_queries;
 					$query .= '; SELECT FOUND_ROWS()';
 				}
@@ -998,8 +1000,6 @@ class hyperdb extends wpdb {
 				}
 			}
 		}
-
-		$this->last_error = $this->ex_mysql_error( $this->dbh );
 
 		if ( $this->last_error ) {
 			$this->last_errno = $this->ex_mysql_errno( $this->dbh );
