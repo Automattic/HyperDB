@@ -70,6 +70,7 @@ define( 'HYPERDB_CONN_HOST_ERROR', 2003 ); // Can't connect to MySQL server on '
 define( 'HYPERDB_SERVER_GONE_ERROR', 2006 ); // MySQL server has gone away
 
 // phpcs:ignore PEAR.NamingConventions.ValidClassName.StartWithCapital
+#[AllowDynamicProperties]
 class hyperdb extends wpdb {
 	/**
 	 * The last table that was queried
