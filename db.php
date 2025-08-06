@@ -1562,7 +1562,7 @@ class hyperdb extends wpdb {
 
 		// Emulate ping with a simple query
 		$res = $this->ex_mysql_query( 'SELECT /* hyperbd::ex_mysql_ping */ 1', $dbh );
-		return is_object( $res ) && $res->num_rows === 1;
+		return is_object( $res ) && 1 === $res->num_rows;
 	}
 
 	public function ex_mysql_affected_rows( $dbh ) {
