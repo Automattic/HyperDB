@@ -1566,7 +1566,6 @@ class hyperdb extends wpdb {
 			return true;
 		}
 
-		trigger_error( 'hyperdb::ex_mysql_ping needs to reconnect to the database', E_USER_WARNING );
 		return $this->is_mysql_connection( $this->db_connect() );
 	}
 
