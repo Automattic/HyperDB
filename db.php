@@ -1560,9 +1560,14 @@ class hyperdb extends wpdb {
 			return @mysqli_ping( $dbh );
 		}
 
-		// Emulate ping with a simple query
-		$res = $this->ex_mysql_query( 'SELECT /* hyperbd::ex_mysql_ping */ 1', $dbh );
-		return is_object( $res ) && 1 === $res->num_rows;
+		$res = $this->ex_mysql_query( 'SELECT /* hyperdb::ex_mysql_ping */ 1', $dbh );
+		if ( is_object( $res ) && 1 === $res->num_rows ) {
+			// The "ping" query was enough, the database connection is still there.
+			return true;
+		}
+
+		trigger_error( 'hyperdb::ex_mysql_ping needs to reconnect to the database', E_USER_WARNING );
+		return $this->is_mysql_connection( $this->db_connect() );
 	}
 
 	public function ex_mysql_affected_rows( $dbh ) {
