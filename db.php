@@ -1556,7 +1556,7 @@ class hyperdb extends wpdb {
 		}
 
 		// Deprecated: Function mysqli_ping() is deprecated since 8.4
-		if ( version_compare( PHP_VERSION, '8.4.0', '<' ) ) {
+		if ( version_compare( PHP_VERSION, '8.2.0', '<' ) ) {
 			return @mysqli_ping( $dbh );
 		}
 
