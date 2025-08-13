@@ -1566,7 +1566,8 @@ class hyperdb extends wpdb {
 			return true;
 		}
 
-		return $this->is_mysql_connection( $this->db_connect() );
+		// Let the hyperdb logic reconnect us.
+		return false;
 	}
 
 	public function ex_mysql_affected_rows( $dbh ) {
