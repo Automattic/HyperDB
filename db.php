@@ -1556,6 +1556,7 @@ class hyperdb extends wpdb {
 		}
 
 		// Deprecated: Function mysqli_ping() is deprecated since 8.4
+		// The mysqli.reconnect php.ini setting had been ignored by the mysqlnd driver, and was removed as of PHP 8.2.0.
 		if ( version_compare( PHP_VERSION, '8.2.0', '<' ) ) {
 			return @mysqli_ping( $dbh );
 		}
