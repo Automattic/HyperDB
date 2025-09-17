@@ -33,6 +33,16 @@ if ( defined( 'WPDB_PATH' ) ) {
 	/** @psalm-suppress UnresolvableInclude */
 	require_once ABSPATH . WPINC . '/wp-db.php';
 }
+// Check if we are in wp-admin area
+// We can only check WP_ADMIN constant here as WordPress functions are not loaded yet
+$is_admin_area = defined('WP_ADMIN') && WP_ADMIN === true;
+
+// If we're in admin area, bypass HyperDB and use standard database connection
+if ($is_admin_area) {
+    $wpdb = new wpdb( DB_USER, DB_PASSWORD, DB_NAME, DB_HOST );
+    return;
+}
+
 
 // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedIf
 if ( defined( 'DB_CONFIG_FILE' ) && file_exists( DB_CONFIG_FILE ) ) {
