@@ -33,15 +33,20 @@ if ( defined( 'WPDB_PATH' ) ) {
 	/** @psalm-suppress UnresolvableInclude */
 	require_once ABSPATH . WPINC . '/wp-db.php';
 }
-// Check if we are in wp-admin area
-// We can only check WP_ADMIN constant here as WordPress functions are not loaded yet
-$is_admin_area = defined('WP_ADMIN') && WP_ADMIN === true;
+// Check if we are in post-new.php page bypass hyperdb
+$is_post_new = false;
+if (defined('WP_ADMIN') && WP_ADMIN === true) {
+    // Get the current script name from PHP_SELF
+    $script_name = isset($_SERVER['PHP_SELF']) ? basename($_SERVER['PHP_SELF']) : '';
+    $is_post_new = ($script_name === 'post-new.php');
+}
 
-// If we're in admin area, bypass HyperDB and use standard database connection
-if ($is_admin_area) {
+// If we're in post-new.php, bypass HyperDB and use standard database connection
+if ($is_post_new) {
     $wpdb = new wpdb( DB_USER, DB_PASSWORD, DB_NAME, DB_HOST );
     return;
 }
+
 
 
 // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedIf
