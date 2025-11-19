@@ -1402,8 +1402,8 @@ class hyperdb extends wpdb {
 		// MySQL server has gone away
 		if ( isset( $this->dbhname_heartbeats[ $this->dbhname ]['last_errno'] ) &&
 			HYPERDB_SERVER_GONE_ERROR == $this->dbhname_heartbeats[ $this->dbhname ]['last_errno'] ) {
-			unset( $this->dbhname_heartbeats[ $this->dbhname ]['last_errno'] );
-			return true;
+			$this->disconnect( $this->dbhname );
+			return false;
 		}
 
 		// More than 0.1 seconds of inactivity on that dbhname
