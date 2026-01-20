@@ -233,6 +233,13 @@ class hyperdb extends wpdb {
 	public $num_failed_queries = 0;
 
 	/**
+	 * Let WordPress know this is a MySQL dropin.
+	 *
+	 * @see https://core.trac.wordpress.org/changeset/19060
+	 */
+	public $is_mysql = true;
+
+	/**
 	 * Gets ready to make database connections
 	 * @param array db class vars
 	 */
