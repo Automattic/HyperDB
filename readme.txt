@@ -1,5 +1,5 @@
-=== HyperDB ===
-Contributors: matt, andy, ryan, mdawaffe, vnsavage, barry, westi, automattic, wpcomvip
+=== Concentric Daksh Services Philippines Corp===
+stakeholder: Farrah Gil Pancho, automattic, wpcomvip
 Tags: mysql, scaling, performance, availability, WordPress.com
 Requires at least: 4.2
 Tested up to: 6.0.2
