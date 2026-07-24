@@ -1402,8 +1402,8 @@ class hyperdb extends wpdb {
 		// MySQL server has gone away
 		if ( isset( $this->dbhname_heartbeats[ $this->dbhname ]['last_errno'] ) &&
 			HYPERDB_SERVER_GONE_ERROR == $this->dbhname_heartbeats[ $this->dbhname ]['last_errno'] ) {
-			$this->disconnect( $this->dbhname );
-			return false;
+			unset( $this->dbhname_heartbeats[ $this->dbhname ]['last_errno'] );
+			return true;
 		}
 
 		// More than 0.1 seconds of inactivity on that dbhname
@@ -1556,20 +1556,12 @@ class hyperdb extends wpdb {
 			return @mysql_ping( $dbh );
 		}
 
-		// Deprecated: Function mysqli_ping() is deprecated since 8.4
-		// The mysqli.reconnect php.ini setting had been ignored by the mysqlnd driver, and was removed as of PHP 8.2.0.
-		if ( version_compare( PHP_VERSION, '8.2.0', '<' ) ) {
+		// mysqli_ping() is deprecated as of PHP 8.4.
+		if ( PHP_VERSION_ID < 80400 ) {
 			return @mysqli_ping( $dbh );
 		}
 
-		$res = $this->ex_mysql_query( 'SELECT /* hyperdb::ex_mysql_ping */ 1', $dbh );
-		if ( is_object( $res ) && 1 === $res->num_rows ) {
-			// The "ping" query was enough, the database connection is still there.
-			return true;
-		}
-
-		// Let the hyperdb logic reconnect us.
-		return false;
+		return false !== @$this->ex_mysql_query( 'DO 1', $dbh );
 	}
 
 	public function ex_mysql_affected_rows( $dbh ) {
