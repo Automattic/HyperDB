@@ -1556,7 +1556,12 @@ class hyperdb extends wpdb {
 			return @mysql_ping( $dbh );
 		}
 
-		return @mysqli_ping( $dbh );
+		// mysqli_ping() is deprecated as of PHP 8.4.
+		if ( PHP_VERSION_ID < 80400 ) {
+			return @mysqli_ping( $dbh );
+		}
+
+		return false !== @$this->ex_mysql_query( 'DO 1', $dbh );
 	}
 
 	public function ex_mysql_affected_rows( $dbh ) {
