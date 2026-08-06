@@ -1103,22 +1103,33 @@ class hyperdb extends wpdb {
 	/**
 	 * Generic function to determine if a database supports a particular feature
 	 * The additional argument allows the caller to check a specific database.
+	 *
 	 * @param string $db_cap the feature
 	 * @param false|string|resource $dbh_or_table the databaese (the current database, the database housing the specified table, or the database of the mysql resource)
 	 * @return bool
 	 */
 	public function has_cap( $db_cap, $dbh_or_table = false ) {
-		$version = $this->db_version( $dbh_or_table );
+		$db_version     = $this->db_version( $dbh_or_table );
+		$db_server_info = $this->db_server_info( $dbh_or_table );
+
+		// Account for MariaDB version being prefixed with '5.5.5-' on older PHP versions.
+		if ( '5.5.5' === $db_version && false !== strpos( $db_server_info, 'MariaDB' )
+			&& PHP_VERSION_ID < 80016 // PHP 8.0.15 or older.
+		) {
+			// Strip the '5.5.5-' prefix and set the version to the correct value.
+			$db_server_info = preg_replace( '/^5\.5\.5-(.*)/', '$1', $db_server_info );
+			$db_version     = preg_replace( '/[^0-9.].*/', '', $db_server_info );
+		}
 
 		switch ( strtolower( $db_cap ) ) :
 			case 'collation':
 			case 'group_concat':
 			case 'subqueries':
-				return version_compare( $version, '4.1', '>=' );
+				return version_compare( $db_version, '4.1', '>=' );
 			case 'set_charset':
-				return version_compare( $version, '5.0.7', '>=' );
+				return version_compare( $db_version, '5.0.7', '>=' );
 			case 'utf8mb4':      // @since WP 4.1.0
-				if ( version_compare( $version, '5.5.3', '<' ) ) {
+				if ( version_compare( $db_version, '5.5.3', '<' ) ) {
 					return false;
 				}
 				if ( $this->use_mysqli ) {
@@ -1138,7 +1149,7 @@ class hyperdb extends wpdb {
 					return version_compare( $client_version, '5.5.3', '>=' );
 				}
 			case 'utf8mb4_520': // since WP 4.6
-				return $this->has_cap( 'utf8mb4', $dbh_or_table ) && version_compare( $version, '5.6', '>=' );
+				return $this->has_cap( 'utf8mb4', $dbh_or_table ) && version_compare( $db_version, '5.6', '>=' );
 		endswitch;
 
 		return false;
