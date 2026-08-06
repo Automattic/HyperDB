@@ -26,7 +26,7 @@ jobs:
           coverage: none
 
       - name: Install Dependencies
-        uses: ramsey/composer-install@83af392bf5f031813d25e6fe4cd626cdba9a2df6 # tag=2.2.0
+        uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # tag=4.0.0
 
       - name: Add error matcher
         run: echo "::add-matcher::$(pwd)/.github/checkstyle-problem-matcher.json"
