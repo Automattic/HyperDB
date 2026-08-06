@@ -346,6 +346,25 @@ class hyperdb extends wpdb {
 	}
 
 	/**
+	 * Determine whether the query uses one of MySQL's advisory lock functions.
+	 *
+	 * GET_LOCK(), RELEASE_LOCK(), RELEASE_ALL_LOCKS(), IS_FREE_LOCK() and
+	 * IS_USED_LOCK() are connection scoped. They are issued as SELECTs, so
+	 * is_write_query() classifies them as reads and they get routed to a replica.
+	 * That defeats their purpose: the lock is held on a different connection than
+	 * the master where the writes it is meant to guard happen, and replica load
+	 * balancing can place concurrent callers on different servers, so they never
+	 * contend. Lock queries must therefore always run against the master.
+	 *
+	 * @param string query
+	 * @return bool
+	 */
+	public function is_lock_query( $q ) {
+		$q = ltrim( $q, "\r\n\t (" );
+		return (bool) preg_match( '/^SELECT\s+(?:GET_LOCK|IS_FREE_LOCK|IS_USED_LOCK|RELEASE_LOCK|RELEASE_ALL_LOCKS)\s*\(/i', $q );
+	}
+
+	/**
 	 * Set a flag to prevent reading from slaves which might be lagging after a write
 	 */
 	public function send_reads_to_masters() {
@@ -447,7 +466,7 @@ class hyperdb extends wpdb {
 		}
 
 		// Determine whether the query must be sent to the master (a writable server)
-		if ( ! empty( $use_master ) || true === $this->srtm || isset( $this->srtm[ $this->table ] ) ) {
+		if ( ! empty( $use_master ) || true === $this->srtm || isset( $this->srtm[ $this->table ] ) || $this->is_lock_query( $query ) ) {
 			$use_master = true;
 		} elseif ( $this->is_write_query( $query ) ) {
 			$use_master = true;
