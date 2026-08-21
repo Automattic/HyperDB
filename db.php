@@ -340,8 +340,24 @@ class hyperdb extends wpdb {
 	 * @return bool
 	 */
 	public function is_write_query( $q ) {
-		// Quick and dirty: only SELECT statements are considered read-only.
 		$q = ltrim( $q, "\r\n\t (" );
+
+		// Locking reads require a writable server, even though they begin with SELECT.
+		$identifier_part  = '(?:`(?:``|[^`])+`|[a-z_$][a-z0-9_$]*)';
+		$identifier       = "$identifier_part(?:\\.$identifier_part)?";
+		$of_clause        = "(?:\\s+OF\\s+$identifier(?:\\s*,\\s*$identifier)*)?";
+		$locking_modifier = '(?:\s+(?:NOWAIT|SKIP\s+LOCKED|WAIT\s+\d+(?:\.\d+)?))?';
+		$locking_clause   = "/\\bFOR\\s+UPDATE\\b$of_clause$locking_modifier\\s*;?\\s*\\z/i";
+		$line_comment     = "/(?:--[ \\t]|#)[^\\r\\n]*\\bFOR\\s+UPDATE\\b$of_clause$locking_modifier\\s*;?\\s*\\z/i";
+		if (
+			preg_match( '/^SELECT\s/i', $q )
+			&& preg_match( $locking_clause, $q )
+			&& ! preg_match( $line_comment, $q )
+		) {
+			return true;
+		}
+
+		// Quick and dirty: only SELECT statements are considered read-only.
 		return ! preg_match( '/^(?:SELECT|SHOW|DESCRIBE|DESC|EXPLAIN)\s/i', $q );
 	}
 
