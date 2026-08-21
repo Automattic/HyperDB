@@ -343,9 +343,12 @@ class hyperdb extends wpdb {
 		$q = ltrim( $q, "\r\n\t (" );
 
 		// Locking reads require a writable server, even though they begin with SELECT.
+		$identifier_part  = '(?:`(?:``|[^`])+`|[a-z_$][a-z0-9_$]*)';
+		$identifier       = "$identifier_part(?:\\.$identifier_part)?";
+		$of_clause        = "(?:\\s+OF\\s+$identifier(?:\\s*,\\s*$identifier)*)?";
 		$locking_modifier = '(?:\s+(?:NOWAIT|SKIP\s+LOCKED|WAIT\s+\d+(?:\.\d+)?))?';
-		$locking_clause   = "/\\bFOR\\s+UPDATE\\b$locking_modifier\\s*;?\\s*\\z/i";
-		$line_comment     = "/(?:--[ \\t]|#)[^\\r\\n]*\\bFOR\\s+UPDATE\\b$locking_modifier\\s*;?\\s*\\z/i";
+		$locking_clause   = "/\\bFOR\\s+UPDATE\\b$of_clause$locking_modifier\\s*;?\\s*\\z/i";
+		$line_comment     = "/(?:--[ \\t]|#)[^\\r\\n]*\\bFOR\\s+UPDATE\\b$of_clause$locking_modifier\\s*;?\\s*\\z/i";
 		if (
 			preg_match( '/^SELECT\s/i', $q )
 			&& preg_match( $locking_clause, $q )
