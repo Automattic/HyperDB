@@ -841,7 +841,7 @@ class hyperdb extends wpdb {
 	 * which is why we can't use mysql_real_escape_string() for escapes.
 	 * This is also the reason why we don't allow certain charsets. See set_charset().
 	 */
-	public function _real_escape( $string ) {   // phpcs:ignore PSR2.Methods.MethodDeclaration.Underscore
+	public function _real_escape( $string ) {   // phpcs:ignore PSR2.Methods.MethodDeclaration.Underscore,Universal.NamingConventions.NoReservedKeywordParameterNames -- Keep the inherited public API.
 		$escaped = addslashes( (string) $string );
 		if ( method_exists( get_parent_class( $this ), 'add_placeholder_escape' ) ) {
 			$escaped = $this->add_placeholder_escape( $escaped );
@@ -918,7 +918,7 @@ class hyperdb extends wpdb {
 			if ( ! $this->is_mysql_connection( $this->dbh ) ) {
 				$this->check_current_query = true;
 				$this->last_error          = 'Database connection failed';
-				$this->num_failed_queries++;
+				++$this->num_failed_queries;
 
 				if ( function_exists( 'do_action' ) ) {
 					do_action( 'sql_query_log', $query, false, $this->last_error );
@@ -938,7 +938,7 @@ class hyperdb extends wpdb {
 				if ( $stripped_query !== $query ) {
 					$this->insert_id  = 0;
 					$this->last_error = 'Invalid query';
-					$this->num_failed_queries++;
+					++$this->num_failed_queries;
 
 					if ( function_exists( 'do_action' ) ) {
 						do_action( 'sql_query_log', $query, false, $this->last_error );
@@ -1019,7 +1019,7 @@ class hyperdb extends wpdb {
 			}
 
 			$this->print_error( $this->last_error );
-			$this->num_failed_queries++;
+			++$this->num_failed_queries;
 
 			if ( function_exists( 'do_action' ) ) {
 				do_action( 'sql_query_log', $query, false, $this->last_error );
@@ -1044,14 +1044,14 @@ class hyperdb extends wpdb {
 			$this->col_info = array();
 			while ( $i < $this->ex_mysql_num_fields( $this->result ) ) {
 				$this->col_info[ $i ] = $this->ex_mysql_fetch_field( $this->result );
-				$i++;
+				++$i;
 			}
 			$num_rows          = 0;
 			$this->last_result = array();
 			// phpcs:ignore WordPress.CodeAnalysis.AssignmentInCondition.FoundInWhileCondition
 			while ( ( $row = $this->ex_mysql_fetch_object( $this->result ) ) ) {
 				$this->last_result[ $num_rows ] = $row;
-				$num_rows++;
+				++$num_rows;
 			}
 
 			$this->ex_mysql_free_result( $this->result );
@@ -1249,7 +1249,7 @@ class hyperdb extends wpdb {
 			}
 		}
 
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_fsockopen
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_fsockopen,WordPress.WP.AlternativeFunctions.file_system_operations_fsockopen -- This method explicitly probes a TCP socket.
 		$socket = @ fsockopen( $host, $port, $errno, $errstr, $float_timeout );
 		if ( false === $socket ) {
 			$server_state = "down [ > $float_timeout ] ($errno) '$errstr'";
@@ -1558,6 +1558,7 @@ class hyperdb extends wpdb {
 
 		// mysqli_ping() is deprecated as of PHP 8.4.
 		if ( PHP_VERSION_ID < 80400 ) {
+			// phpcs:ignore Generic.PHP.DeprecatedFunctions.Deprecated -- The version guard prevents use on PHP 8.4+.
 			return @mysqli_ping( $dbh );
 		}
 
@@ -1636,7 +1637,6 @@ class hyperdb extends wpdb {
 		$row = mysqli_fetch_row( $result );
 
 		return ! is_null( $row ) ? $row : false;
-
 	}
 
 	public function ex_mysql_num_rows( $result ) {
@@ -1681,7 +1681,6 @@ class hyperdb extends wpdb {
 		return ini_set( 'default_socket_timeout', $timeout );
 	}
 	// Helper functions for configuration
-
 } // class hyperdb
 
 // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
