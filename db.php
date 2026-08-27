@@ -69,6 +69,7 @@ define( 'HYPERDB_CONNNECTION_ERROR', 2002 ); // Can't connect to local MySQL ser
 define( 'HYPERDB_CONN_HOST_ERROR', 2003 ); // Can't connect to MySQL server on '%s' (%d)
 define( 'HYPERDB_SERVER_GONE_ERROR', 2006 ); // MySQL server has gone away
 
+#[AllowDynamicProperties]
 // phpcs:ignore PEAR.NamingConventions.ValidClassName.StartWithCapital
 class hyperdb extends wpdb {
 	/**
@@ -1563,7 +1564,12 @@ class hyperdb extends wpdb {
 			return @mysql_ping( $dbh );
 		}
 
-		return @mysqli_ping( $dbh );
+		// mysqli_ping() is deprecated as of PHP 8.4.
+		if ( PHP_VERSION_ID < 80400 ) {
+			return @mysqli_ping( $dbh );
+		}
+
+		return false !== @$this->ex_mysql_query( 'DO 1', $dbh );
 	}
 
 	public function ex_mysql_affected_rows( $dbh ) {
