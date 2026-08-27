@@ -324,6 +324,18 @@ class hyperdb extends wpdb {
 		$q = rtrim( $q, ';/-#' );
 		// allow (select...) union [...] style queries. Use the first queries table name.
 		$q = ltrim( $q, "\t (" );
+
+		/*
+		 * Keep the untruncated query for the parent fallback at the end of this
+		 * method. The 1500-char cap below exists to keep the regexes here cheap,
+		 * but handing that truncated string to wpdb::get_table_from_query() makes
+		 * it return false for queries whose table it would otherwise match --
+		 * anything where the table name falls beyond the cap. Callers then lose
+		 * table-based routing, and SRTM entries for those tables stop working.
+		 * See Automattic/HyperDB#139.
+		 */
+		$full_query = $q;
+
 		// Strip everything between parentheses except nested
 		// selects and use only 1500 chars of the query
 		$q = preg_replace( '/\((?!\s*select)[^(]*?\)/is', '()', substr( $q, 0, 1500 ) );
@@ -347,7 +359,7 @@ class hyperdb extends wpdb {
 			return $maybe[1];
 		}
 
-		$this->last_table = parent::get_table_from_query( $q );
+		$this->last_table = parent::get_table_from_query( $full_query );
 		return $this->last_table;
 	}
 
