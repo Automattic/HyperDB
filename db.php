@@ -255,6 +255,18 @@ class hyperdb extends wpdb {
 			mysqli_report( MYSQLI_REPORT_OFF );
 		}
 
+		/*
+		 * wpdb sets this in db_connect() and gates behaviour on it, most visibly
+		 * get_col_length() and get_table_charset(), both of which return false
+		 * outright when it is empty. HyperDB never assigned it, so get_col_length()
+		 * always returned false -- see Automattic/HyperDB#160.
+		 *
+		 * Set here rather than in db_connect() because this class returns from that
+		 * method early when it has no query to route, so it is not guaranteed to run.
+		 * HyperDB only ever talks to MySQL, so the value is unconditional.
+		 */
+		$this->is_mysql = true;
+
 		$this->init_charset();
 	}
 
