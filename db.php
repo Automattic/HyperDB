@@ -13,6 +13,11 @@ Version: 1.10
 
 /** This file should be installed at ABSPATH/wp-content/db.php **/
 
+// Don't use HyperDB in WP-CLI context.
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	return;
+}
+
 /**
  * @var wpdb|true
  * @psalm-suppress InvalidGlobal
@@ -1448,12 +1453,21 @@ class hyperdb extends wpdb {
 		if ( ! $this->use_mysqli ) {
 			return mysql_query( $query, $dbh );
 		}
-		$driver = new mysqli_driver();
-		if ($this->suppress_errors) {
-			$driver->report_mode = MYSQLI_REPORT_OFF;
-		} else {
-			$driver->report_mode = MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT;
-		}
+		/*
+		 * Do not enable mysqli exception reporting here.
+		 *
+		 * mysqli_driver::$report_mode is process-global, so setting it per query
+		 * also overrides the MYSQLI_REPORT_OFF set in the constructor and the one
+		 * wpdb sets for the same reason. With reporting enabled, mysqli_query()
+		 * throws before query() can reach:
+		 *
+		 *     $this->last_error = $this->ex_mysql_error( $this->dbh );
+		 *
+		 * which leaves last_error unset and print_error() never called, so an
+		 * ordinary SQL error becomes an uncaught mysqli_sql_exception and takes
+		 * down the whole request. WordPress expects a failed query to return
+		 * false and populate last_error instead.
+		 */
 		return mysqli_query( $dbh, $query );
 	}
 
