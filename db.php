@@ -342,23 +342,16 @@ class hyperdb extends wpdb {
 	public function is_write_query( $q ) {
 		$q = ltrim( $q, "\r\n\t (" );
 
-		// Locking reads require a writable server, even though they begin with SELECT.
-		$identifier_part  = '(?:`(?:``|[^`])+`|[a-z_$][a-z0-9_$]*)';
-		$identifier       = "$identifier_part(?:\\.$identifier_part)?";
-		$of_clause        = "(?:\\s+OF\\s+$identifier(?:\\s*,\\s*$identifier)*)?";
-		$locking_modifier = '(?:\s+(?:NOWAIT|SKIP\s+LOCKED|WAIT\s+\d+(?:\.\d+)?))?';
-		$locking_clause   = "/\\bFOR\\s+UPDATE\\b$of_clause$locking_modifier\\s*;?\\s*\\z/i";
-		$line_comment     = "/(?:--[ \\t]|#)[^\\r\\n]*\\bFOR\\s+UPDATE\\b$of_clause$locking_modifier\\s*;?\\s*\\z/i";
-		if (
-			preg_match( '/^SELECT\s/i', $q )
-			&& preg_match( $locking_clause, $q )
-			&& ! preg_match( $line_comment, $q )
-		) {
+		// Quick and dirty: only SELECT statements are considered read-only.
+		if ( ! preg_match( '/^(?:SELECT|SHOW|DESCRIBE|DESC|EXPLAIN)\s/i', $q ) ) {
 			return true;
 		}
 
-		// Quick and dirty: only SELECT statements are considered read-only.
-		return ! preg_match( '/^(?:SELECT|SHOW|DESCRIBE|DESC|EXPLAIN)\s/i', $q );
+		// Locking reads (FOR UPDATE, FOR SHARE, LOCK IN SHARE MODE) take row locks that only
+		// mean something on a writable server. Whatever follows the clause (OF ..., NOWAIT,
+		// SKIP LOCKED, a semicolon, a trailing comment) is allowed as long as no quote follows,
+		// which rules out the clause appearing inside a string literal.
+		return (bool) preg_match( '/\b(?:FOR\s+UPDATE|FOR\s+SHARE|LOCK\s+IN\s+SHARE\s+MODE)\b[^\'"]*\z/i', $q );
 	}
 
 	/**
