@@ -264,10 +264,12 @@ class hyperdb extends wpdb {
 
 		if ( ! isset( $read ) ) {
 			$read = 1;
+			$db['read'] = 1;
 		}
 
 		if ( ! isset( $write ) ) {
 			$write = 1;
+			$db['write'] = 1;
 		}
 
 		unset( $db['dataset'] );
