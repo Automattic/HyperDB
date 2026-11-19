@@ -6,7 +6,7 @@
         "automattic/vipwpcs": "2.3.3",
         "dealerdirect/phpcodesniffer-composer-installer": "0.7.2",
         "johnpbloch/wordpress-core": "^6.0",
-        "php-stubs/wordpress-stubs": "^6.0",
+        "php-stubs/wordpress-stubs": "^7.0",
         "phpcompatibility/phpcompatibility-wp": "2.1.4",
         "vimeo/psalm": "^4.11"
     },
