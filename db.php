@@ -473,7 +473,9 @@ class hyperdb extends wpdb {
 			$use_master = true;
 		} elseif ( $this->is_write_query( $query ) ) {
 			$use_master = true;
-			if ( is_array( $this->srtm ) ) {
+			// A table-less write (SET, START TRANSACTION) would store the key 0 or '',
+			// which the join detection below then matches in nearly every query.
+			if ( is_array( $this->srtm ) && $this->table ) {
 				$this->srtm[ $this->table ] = true;
 			}
 		} elseif ( ! isset( $use_master ) && is_array( $this->srtm ) && ! empty( $this->srtm ) ) {
